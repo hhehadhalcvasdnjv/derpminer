@@ -11,8 +11,11 @@ import { PoolChainClock, Wake } from './core/chainClock.js';
 import { StateStore } from './core/state.js';
 import { findSolution } from './core/proof.js';
 import { makeSigner } from './wallet/signer.js';
+import { StatusHub } from './statusHub.js';
+import { startDashboardServer } from './server.js';
 import { notify } from './notify.js';
 import { log } from './log.js';
+import type { Server } from 'node:http';
 
 export interface DaemonHandles {
   stop(): Promise<void>;
@@ -20,6 +23,13 @@ export interface DaemonHandles {
   engines: Map<string, ShiftEngine>;
   pool: RpcPool;
   watchers: Map<MineKey, Watcher>;
+  /** Live status collector (also feeds the dashboard). */
+  status: StatusHub;
+}
+
+export interface DaemonOptions {
+  /** Serve the monitoring dashboard on this localhost port (omit to disable). */
+  uiPort?: number;
 }
 
 /**
@@ -29,7 +39,7 @@ export interface DaemonHandles {
  * move, so a slot re-checks for stale/orphan status without waiting out its
  * whole sleep.
  */
-export async function startDaemon(config: Config, privateKey: Hex): Promise<DaemonHandles> {
+export async function startDaemon(config: Config, privateKey: Hex, opts: DaemonOptions = {}): Promise<DaemonHandles> {
   if (config.targets.length === 0) throw new Error('no targets configured — run `derpminer init` first');
 
   const pool = RpcPool.fromUrls(config.rpcUrls, robinhoodChain, { receiptPollMs: 1500 });
@@ -48,10 +58,13 @@ export async function startDaemon(config: Config, privateKey: Hex): Promise<Daem
   const wakes = new Map<string, Wake>();
   const watchers = new Map<MineKey, Watcher>();
   const enginesByMine = new Map<MineKey, ShiftEngine[]>();
+  const mines = new Map<MineKey, Mine>();
+  const status = new StatusHub(pool, mines, state, config);
 
   const mineKeys = [...new Set(config.targets.map((t) => t.mine))];
   for (const mineKey of mineKeys) {
     const mine = new Mine(MINES[mineKey], pool);
+    mines.set(mineKey, mine);
     const directFee =
       config.walletMode === 'direct' && MINES[mineKey].feeAsset === 'ETH'
         ? (tokenId: bigint, slot: bigint) => mine.clockInFeeFor(tokenId, slot, signer.address)
@@ -73,6 +86,7 @@ export async function startDaemon(config: Config, privateKey: Hex): Promise<Daem
         const key = `${mineKey}:${tokenId}:${slot}`;
         engine.on('printed', (e: { reward: bigint }) => {
           log.info('printed', { key, reward: formatEther(e.reward) });
+          status.recordPrint(mineKey, tokenId, BigInt(slot), e.reward);
           void notify(config.webhookUrl, `⛏️ ${key} printed ${formatEther(e.reward)} DERP`);
         });
         engine.on('reclock:free', (e: { reason: string }) => log.info('free re-clock', { key, reason: e.reason }));
@@ -107,16 +121,21 @@ export async function startDaemon(config: Config, privateKey: Hex): Promise<Daem
     });
   }
 
-  log.info('daemon started', { targets: engines.size, mines: mineKeys, mode: config.walletMode });
+  let server: Server | undefined;
+  if (opts.uiPort) server = startDashboardServer(opts.uiPort, () => status.getState());
+
+  log.info('daemon started', { targets: engines.size, mines: mineKeys, mode: config.walletMode, ui: opts.uiPort ?? 'off' });
 
   return {
     engines,
     pool,
     watchers,
+    status,
     stop: async () => {
       probeLoop.stop();
       for (const w of watchers.values()) w.stop();
       for (const e of engines.values()) e.stop();
+      server?.close();
     },
   };
 }

@@ -2,7 +2,7 @@
 
 A headless, RPC-resilient CLI miner for **StonkPit** ($DERP) on Robinhood Chain — for **StonkBrokers** and **PitBoys**.
 
-StonkPit is a browser proof-of-work game: you clock a broker/boy in, your browser grinds SHA-256 at a fixed pace, and a winning hash prints `$DERP`. This tool does the same thing from a server, without a browser tab and without leaving your main wallet hot — and it's built to survive flaky RPCs, which is where browser miners bleed rewards.
+StonkPit is a browser proof-of-work game: you clock a broker/boy in, your browser grinds SHA-256 at a fixed pace, and a winning hash prints `$DERP`. This tool does the same thing **headless from a terminal or server — no browser, no open tab, no wallet popups** — and it's built to survive flaky RPCs, which is where browser miners bleed rewards. The mining loop is pure CLI; an optional local dashboard (`http://127.0.0.1:8787`) lets you watch it, but the bot mines the same with it closed or with `--no-ui`.
 
 > Independent, unaffiliated software built on public contracts. Experimental. **NFA.** Read the fine print on [stonkpit.xyz](https://stonkpit.xyz).
 
@@ -47,8 +47,9 @@ derpminer shadow-setup --budget <wei> --max-fee <wei> --deposit <wei> --days 30
 # 3. Check the economics before committing (on-chain reads only, no price guess).
 derpminer quote pitboys <tokenId> <slot>
 
-# 4. Run the daemon.
+# 4. Run the daemon. Headless by default; dashboard on http://127.0.0.1:8787.
 derpminer run
+derpminer run --no-ui          # pure CLI, no dashboard server at all
 
 # Anytime:
 derpminer status              # persisted per-slot state + lifetime prints

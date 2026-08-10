@@ -216,16 +216,20 @@ program
 // ---------------------------------------------------------------- run
 program
   .command('run')
-  .description('Start the mining daemon')
-  .action(async () => {
+  .description('Start the headless mining daemon (optionally with a local dashboard)')
+  .option('--no-ui', 'run purely headless, no dashboard server')
+  .option('--port <n>', 'dashboard port', '8787')
+  .action(async (opts: { ui: boolean; port: string }) => {
     const config = loadConfig();
     if (config.walletMode === 'shadow' && !existsSync(config.keystorePath)) {
       throw new Error('no hot key; run `derpminer shadow-setup` first');
     }
     const pass = await prompt('Keystore passphrase: ');
     const privateKey = loadKeystore(config.keystorePath, pass);
-    const handles = await startDaemon(config, privateKey);
-    console.log(`Mining ${handles.engines.size} slot(s). Ctrl-C to stop.`);
+    const uiPort = opts.ui ? Number(opts.port) : undefined;
+    const handles = await startDaemon(config, privateKey, { uiPort });
+    console.log(`Mining ${handles.engines.size} slot(s) headless. Ctrl-C to stop.`);
+    if (uiPort) console.log(`Dashboard: http://127.0.0.1:${uiPort}  (optional — mining runs without it)`);
     const shutdown = async () => {
       console.log('\nStopping…');
       await handles.stop();

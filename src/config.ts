@@ -20,6 +20,8 @@ export interface Config {
   walletMode: WalletMode;
   /** Path to the encrypted hot-key keystore. */
   keystorePath: string;
+  /** The owner wallet that funds the tank (for tank display; optional). */
+  ownerAddress?: string;
   targets: TargetConfig[];
   /** Free re-clock to chase the certified tip when orphaned. */
   chaseTip: boolean;
