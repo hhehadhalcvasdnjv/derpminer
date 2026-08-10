@@ -2,7 +2,7 @@
 
 **Mine `$DERP` on StonkPit headless — no browser, no open tab, no popups — and keep your main wallet cold.**
 
-[![CI](https://github.com/OWNER/derpminer/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/derpminer/actions/workflows/ci.yml)
+[![CI](https://github.com/hhehadhalcvasdnjv/derpminer/actions/workflows/ci.yml/badge.svg)](https://github.com/hhehadhalcvasdnjv/derpminer/actions/workflows/ci.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-2bff88.svg)](LICENSE)
 [![node](https://img.shields.io/badge/node-%E2%89%A520-38e8ff.svg)](package.json)
 
@@ -10,8 +10,9 @@ StonkPit is a browser proof-of-work game on Robinhood Chain: clock a **StonkBrok
 
 > ⚠️ Independent, unaffiliated software built on public contracts. Experimental, on an experimental chain. **NFA.**
 
-<!-- Add a screenshot at docs/dashboard.png (run `derpminer run` → http://127.0.0.1:8787 and capture it). -->
-![derpminer dashboard — a CRT trading-terminal showing miner slots with countdown rings, a live print feed, RPC health, and an emission-index gauge](docs/dashboard.png)
+The optional dashboard (`http://127.0.0.1:8787`) is an amber-phosphor text-mode terminal: miner slots with ASCII countdown bars and sparklines, a live print feed, RPC-pool health, and the emission-index gauge — all served locally by the daemon. Mining runs the same with it closed or with `--no-ui`.
+
+<!-- Tip: run `derpminer run`, open http://127.0.0.1:8787, screenshot it, and drop it at docs/dashboard.png to feature it here. -->
 
 ## Why a dedicated miner
 

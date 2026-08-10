@@ -19,9 +19,9 @@
   ],
   "license": "MIT",
   "author": "derpminer contributors",
-  "repository": { "type": "git", "url": "git+https://github.com/OWNER/derpminer.git" },
-  "bugs": { "url": "https://github.com/OWNER/derpminer/issues" },
-  "homepage": "https://github.com/OWNER/derpminer#readme",
+  "repository": { "type": "git", "url": "git+https://github.com/hhehadhalcvasdnjv/derpminer.git" },
+  "bugs": { "url": "https://github.com/hhehadhalcvasdnjv/derpminer/issues" },
+  "homepage": "https://github.com/hhehadhalcvasdnjv/derpminer#readme",
   "files": ["dist", "README.md", "SECURITY.md", "QUICKSTART.md", "LICENSE"],
   "scripts": {
     "build": "tsc -p tsconfig.json && node -e \"require('fs').cpSync('src/ui','dist/ui',{recursive:true})\"",
