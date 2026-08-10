@@ -1,0 +1,6 @@
+node_modules
+dist
+.derpminer
+*.local
+.env
+coverage

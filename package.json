@@ -1,0 +1,26 @@
+{
+  "name": "derpminer",
+  "version": "0.1.0",
+  "description": "Headless, RPC-resilient CLI miner for StonkPit ($DERP) on Robinhood Chain",
+  "type": "module",
+  "bin": { "derpminer": "dist/cli.js" },
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts",
+    "typecheck": "tsc --noEmit",
+    "dev": "node --import tsx src/cli.ts"
+  },
+  "dependencies": {
+    "viem": "^2.21.0",
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0",
+    "tsx": "^4.19.0",
+    "@types/node": "^22.0.0"
+  }
+}
