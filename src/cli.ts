@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
-import { formatEther, formatUnits, type Hex } from 'viem';
+import { formatEther, formatUnits, parseEther, type Hex } from 'viem';
 import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
 import { existsSync } from 'node:fs';
@@ -68,9 +68,9 @@ program
 program
   .command('shadow-setup')
   .description('Generate a hot key and print the owner transactions that grant it a budget')
-  .option('--budget <wei>', 'total tank spend the shadow may draw per token', '0')
-  .option('--max-fee <wei>', 'per-clock-in fee ceiling', '0')
-  .option('--deposit <wei>', 'fee-asset to pre-fund into the tank', '0')
+  .option('--budget <ape>', 'total tank spend the shadow may draw per token, in APE/ETH', '0')
+  .option('--max-fee <ape>', 'per-clock-in fee ceiling, in APE/ETH', '0.2')
+  .option('--deposit <ape>', 'fee-asset to pre-fund into the tank, in APE/ETH', '0')
   .option('--days <n>', 'grant validity in days', '30')
   .action(async (opts: { budget: string; maxFee: string; deposit: string; days: string }) => {
     const config = loadConfig();
@@ -97,9 +97,9 @@ program
       tokenIds: config.targets.filter((t) => t.mine === target.mine).map((t) => BigInt(t.tokenId)),
       operator,
       expiry,
-      budget: BigInt(opts.budget),
-      maxFee: BigInt(opts.maxFee),
-      tankDeposit: BigInt(opts.deposit),
+      budget: parseEther(opts.budget),
+      maxFee: parseEther(opts.maxFee),
+      tankDeposit: parseEther(opts.deposit),
     });
 
     console.log('\nSign these with your OWNER wallet, in order:\n');
@@ -174,7 +174,7 @@ program
 program
   .command('tank <mine>')
   .description('Show fee-tank balance and print deposit/withdraw calldata')
-  .option('--withdraw <wei>', 'print withdraw calldata for this amount')
+  .option('--withdraw <ape>', 'print withdraw calldata for this amount, in APE/ETH')
   .action(async (mineKey: string, opts: { withdraw?: string }) => {
     const config = loadConfig();
     const profile = MINES[mineKey as MineKey];
@@ -186,7 +186,7 @@ program
     console.log(`reserved:     ${formatEther(tank.reserved)} ${profile.feeAsset}`);
     console.log(`withdrawable: ${formatEther(tank.withdrawable)} ${profile.feeAsset}`);
     if (opts.withdraw) {
-      const tx = buildWithdrawTank(profile, BigInt(opts.withdraw));
+      const tx = buildWithdrawTank(profile, parseEther(opts.withdraw));
       console.log(`\nWithdraw calldata (sign with owner wallet):\n  to:   ${tx.to}\n  data: ${tx.data}`);
     }
   });
