@@ -2,7 +2,7 @@ import { encodeFunctionData, type Hex } from 'viem';
 import type { MineProfile } from '../chain/registry.js';
 import { ABIS } from '../chain/registry.js';
 
-export type SetupKind = 'agree' | 'approve' | 'setShadow' | 'depositTank';
+export type SetupKind = 'agree' | 'approve' | 'setShadow' | 'depositTank' | 'activate';
 
 /** One owner-signed transaction in the shadow-enable sequence. */
 export interface SetupTx {
@@ -84,6 +84,54 @@ export function buildShadowSetup(p: ShadowSetupParams): SetupTx[] {
     summary: `Fund the fee tank with ${p.tankDeposit} ${p.mine.feeAsset} (wei).`,
   });
 
+  return txs;
+}
+
+export interface ActivateParams {
+  mine: MineProfile;
+  tokenId: bigint;
+  slot: bigint;
+  /** Activation fee in fee-asset wei (activationFee for slot 0, else slotActivationFee). */
+  fee: bigint;
+  /** Prepend agree() when the owner has not signed the pledge yet. */
+  needsAgree: boolean;
+}
+
+/**
+ * Build the owner transactions that activate a slot. Activation is an owner
+ * action (the shadow key may never activate). On the APE floor the fee is
+ * pulled via transferFrom, so an approve precedes it; on the ETH floor the fee
+ * rides as value. Prepends agree() when the owner has not signed the pledge.
+ */
+export function buildActivate(p: ActivateParams): SetupTx[] {
+  const txs: SetupTx[] = [];
+  if (p.needsAgree) {
+    txs.push({
+      kind: 'agree',
+      to: p.mine.address,
+      data: encodeFunctionData({ abi: p.mine.abi, functionName: 'agree', args: [] }),
+      value: 0n,
+      summary: 'Agree to the Pit Pledge (one-time, required before activating).',
+    });
+  }
+  const isApe = p.mine.feeAsset === 'APE';
+  if (isApe) {
+    if (!p.mine.feeToken) throw new Error('APE mine profile missing feeToken');
+    txs.push({
+      kind: 'approve',
+      to: p.mine.feeToken,
+      data: encodeFunctionData({ abi: ABIS.erc20, functionName: 'approve', args: [p.mine.address, p.fee] }),
+      value: 0n,
+      summary: `Approve ${p.fee} APE (wei) for the activation fee.`,
+    });
+  }
+  txs.push({
+    kind: 'activate',
+    to: p.mine.address,
+    data: encodeFunctionData({ abi: p.mine.abi, functionName: 'activate', args: [p.tokenId, p.slot] }),
+    value: isApe ? 0n : p.fee,
+    summary: `Activate token ${p.tokenId} slot ${p.slot} (fee ${p.fee} ${p.mine.feeAsset} wei).`,
+  });
   return txs;
 }
 

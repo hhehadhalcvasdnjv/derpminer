@@ -18,7 +18,7 @@ import { RpcPool } from './chain/rpcPool.js';
 import { Mine } from './mines/mine.js';
 import { StateStore } from './core/state.js';
 import { quoteSlot } from './economics.js';
-import { buildShadowSetup, buildWithdrawTank } from './wallet/shadow.js';
+import { buildShadowSetup, buildWithdrawTank, buildActivate } from './wallet/shadow.js';
 import { generateShadowKey, saveKeystore, loadKeystore, keystoreAddress } from './wallet/keystore.js';
 import { startDaemon } from './daemon.js';
 
@@ -110,6 +110,41 @@ program
       console.log(`   data:  ${tx.data}\n`);
     });
     console.log('After they confirm, run `derpminer run`.');
+  });
+
+// ---------------------------------------------------------------- activate
+program
+  .command('activate <mine> <tokenId> <slot>')
+  .description('Print the OWNER transactions to activate a slot (owner action, not the shadow key)')
+  .action(async (mineKey: string, tokenId: string, slot: string) => {
+    const config = loadConfig();
+    const profile = MINES[mineKey as MineKey];
+    const mine = new Mine(profile, poolFor(config));
+    const tid = BigInt(tokenId);
+    const s = BigInt(slot);
+
+    if (await mine.isActivated(tid, s)) {
+      console.log(`token ${tid} slot ${s} is already activated.`);
+      return;
+    }
+    const owner = (await prompt('Owner address (holds the NFT): ')) as Hex;
+    const fee = s === 0n ? await mine.activationFee() : await mine.slotActivationFee(s);
+    const needsAgree = !(await mine.agreed(owner));
+    const txs = buildActivate({ mine: profile, tokenId: tid, slot: s, fee, needsAgree });
+
+    console.log(`\nActivation fee: ${formatEther(fee)} ${profile.feeAsset}`);
+    if (profile.bodiesBackSlots && s !== 0n) {
+      console.log(`NOTE: slot ${s} on PitBoys must be backed by another PitBoy assigned in the panel.`);
+      console.log('      Assign it on stonkpit.xyz first; slot 0 needs no panel entry.');
+    }
+    console.log('\nSign these with your OWNER wallet, in order:\n');
+    txs.forEach((tx, i) => {
+      console.log(`${i + 1}. ${tx.kind} — ${tx.summary}`);
+      console.log(`   to:    ${tx.to}`);
+      console.log(`   value: ${tx.value}`);
+      console.log(`   data:  ${tx.data}\n`);
+    });
+    console.log('Or just click "activate" for this slot on stonkpit.xyz — same on-chain effect.');
   });
 
 // ---------------------------------------------------------------- quote

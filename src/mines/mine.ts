@@ -77,6 +77,11 @@ export class Mine {
     return this.call('isActivated', [tokenId, slot]);
   }
 
+  /** Whether an address has signed the Pit Pledge (required to activate/grant). */
+  agreed(owner: Hex): Promise<boolean> {
+    return this.call('agreed', [owner]);
+  }
+
   activeSlotCount(tokenId: bigint): Promise<bigint> {
     return this.call('activeSlotCount', [tokenId]);
   }

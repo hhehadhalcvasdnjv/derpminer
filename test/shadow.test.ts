@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { decodeFunctionData, type Hex } from 'viem';
-import { buildShadowSetup, buildWithdrawTank } from '../src/wallet/shadow.js';
+import { buildShadowSetup, buildWithdrawTank, buildActivate } from '../src/wallet/shadow.js';
 import { MINES, ABIS, APE_TOKEN } from '../src/chain/registry.js';
 import { generateShadowKey, saveKeystore, loadKeystore, keystoreAddress } from '../src/wallet/keystore.js';
 import { mkdtempSync } from 'node:fs';
@@ -67,6 +67,29 @@ describe('buildShadowSetup (Broker / ETH)', () => {
   it('funds depositTank with ETH value directly', () => {
     const dep = txs.find((t) => t.kind === 'depositTank')!;
     expect(dep.value).toBe(7n * 10n ** 15n);
+  });
+});
+
+describe('buildActivate', () => {
+  it('PitBoys slot 0: agree (if needed) + approve APE + activate', () => {
+    const txs = buildActivate({ mine: MINES.pitboys, tokenId: 742n, slot: 0n, fee: 58n * 10n ** 18n, needsAgree: true });
+    expect(txs.map((t) => t.kind)).toEqual(['agree', 'approve', 'activate']);
+    const act = txs.find((t) => t.kind === 'activate')!;
+    const decoded = decodeFunctionData({ abi: MINES.pitboys.abi, data: act.data });
+    expect(decoded.functionName).toBe('activate');
+    expect(decoded.args).toEqual([742n, 0n]);
+    expect(act.value).toBe(0n); // APE floor: fee pulled via approve, not value
+  });
+
+  it('omits agree when the owner already signed the pledge', () => {
+    const txs = buildActivate({ mine: MINES.pitboys, tokenId: 742n, slot: 3n, fee: 10n ** 19n, needsAgree: false });
+    expect(txs.map((t) => t.kind)).toEqual(['approve', 'activate']);
+  });
+
+  it('Broker floor: no approve, fee rides as ETH value', () => {
+    const txs = buildActivate({ mine: MINES.broker, tokenId: 1n, slot: 0n, fee: 2_849_824_964_213_977n, needsAgree: false });
+    expect(txs.map((t) => t.kind)).toEqual(['activate']);
+    expect(txs[0].value).toBe(2_849_824_964_213_977n);
   });
 });
 
