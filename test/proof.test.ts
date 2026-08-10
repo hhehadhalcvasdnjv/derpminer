@@ -84,7 +84,11 @@ describe('findSolutionSync', () => {
   });
 });
 
-describe('findSolution (worker thread)', () => {
+// These grind millions of real hashes (~10-25s). Gated so `npm test` stays
+// fast; run with DERP_SLOW_TESTS=1 (CI / pre-release) to exercise the worker.
+const SLOW = !!process.env.DERP_SLOW_TESTS;
+
+describe.runIf(SLOW)('findSolution (worker thread)', () => {
   it('finds a valid suffix solution off the main thread and it verifies', async () => {
     const sol = await findSolution({
       mine: MINE,
