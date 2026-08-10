@@ -6,6 +6,8 @@
 [![license: MIT](https://img.shields.io/badge/license-MIT-2bff88.svg)](LICENSE)
 [![node](https://img.shields.io/badge/node-%E2%89%A520-38e8ff.svg)](package.json)
 
+**→ [Website](https://hhehadhalcvasdnjv.github.io/derpminer/)** · [Quickstart](QUICKSTART.md) · [Security](SECURITY.md)
+
 StonkPit is a browser proof-of-work game on Robinhood Chain: clock a **StonkBroker** or **PitBoy** in, your browser grinds SHA-256 at a fixed pace, a winning hash prints `$DERP`. derpminer does the same thing from a terminal — built to **survive flaky RPCs** (where browser miners bleed rewards) and to run 24/7 with a **budgeted shadow key** that can't touch your funds.
 
 > ⚠️ Independent, unaffiliated software built on public contracts. Experimental, on an experimental chain. **NFA.**
