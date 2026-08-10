@@ -123,15 +123,15 @@ program
       ? keystoreAddress(config.keystorePath)
       : ('0x0000000000000000000000000000000000000000' as Hex);
     const q = await quoteSlot(mine, BigInt(tokenId), BigInt(slot), caller);
-    const feeDecimals = q.feeAsset === 'APE' ? 18 : 18;
     console.log(`Mine:            ${mineKey}`);
     console.log(`Index:           ${q.index}/90 (higher compresses rewards)`);
-    console.log(`Expected print:  ${formatEther(q.expectedPrint)} DERP per shift`);
-    console.log(`Solve time:      ~${q.solveSeconds.toFixed(0)}s`);
-    console.log(`Shifts/day:      ~${q.shiftsPerDay.toFixed(1)}`);
-    console.log(`DERP/day:        ~${formatEther(q.derpPerDay)} DERP (before fees)`);
-    console.log(`Clock-in fee:    ${formatUnits(q.clockInFee, feeDecimals)} ${q.feeAsset} per shift`);
-    console.log(`Fee/day:         ~${formatUnits(q.feePerDay, feeDecimals)} ${q.feeAsset}`);
+    console.log(`Tier:            ${(Number(q.tierBps) / 10000).toFixed(2)}x`);
+    console.log(`Expected print:  ${Number(formatEther(q.expectedPrint)).toFixed(1)} DERP per shift (E over hit distribution)`);
+    console.log(`  (at mean tick: ${Number(formatEther(q.printAtMeanTick)).toFixed(1)} DERP — the naive figure, understated)`);
+    console.log(`Solve time:      ~${q.solveSeconds.toFixed(0)}s  ->  ~${q.shiftsPerDay.toFixed(0)} shifts/day/slot`);
+    console.log(`DERP/day:        ~${Number(formatEther(q.derpPerDay)).toFixed(0)} DERP (before fees)`);
+    console.log(`Clock-in fee:    ${formatUnits(q.clockInFee, 18)} ${q.feeAsset} per shift`);
+    console.log(`Fee/day:         ~${Number(formatUnits(q.feePerDay, 18)).toFixed(3)} ${q.feeAsset} (+ ~$0.026/shift gas)`);
     console.log('\nNFA. Experimental. Values are on-chain reads only; no token price is assumed.');
   });
 

@@ -97,6 +97,23 @@ export class Mine {
     return this.call('previewPrint', [tokenId, ticks]);
   }
 
+  minPrint(): Promise<bigint> {
+    return this.call('minPrint', []);
+  }
+
+  maxPrint(): Promise<bigint> {
+    return this.call('maxPrint', []);
+  }
+
+  halvingTicks(): Promise<bigint> {
+    return this.call('halvingTicks', []);
+  }
+
+  /** The broker's live mining multiplier in bps (10000 = 1.00x). */
+  tierMultiplierBps(tokenId: bigint): Promise<bigint> {
+    return this.call('tierMultiplierBps', [tokenId]);
+  }
+
   tickerExpiryPrints(): Promise<bigint> {
     return this.call('tickerExpiryPrints', []);
   }
