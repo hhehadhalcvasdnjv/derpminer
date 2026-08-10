@@ -1,89 +1,92 @@
-# derpminer
+# ⛏ derpminer
 
-A headless, RPC-resilient CLI miner for **StonkPit** ($DERP) on Robinhood Chain — for **StonkBrokers** and **PitBoys**.
+**Mine `$DERP` on StonkPit headless — no browser, no open tab, no popups — and keep your main wallet cold.**
 
-StonkPit is a browser proof-of-work game: you clock a broker/boy in, your browser grinds SHA-256 at a fixed pace, and a winning hash prints `$DERP`. This tool does the same thing **headless from a terminal or server — no browser, no open tab, no wallet popups** — and it's built to survive flaky RPCs, which is where browser miners bleed rewards. The mining loop is pure CLI; an optional local dashboard (`http://127.0.0.1:8787`) lets you watch it, but the bot mines the same with it closed or with `--no-ui`.
+[![CI](https://github.com/OWNER/derpminer/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/derpminer/actions/workflows/ci.yml)
+[![license: MIT](https://img.shields.io/badge/license-MIT-2bff88.svg)](LICENSE)
+[![node](https://img.shields.io/badge/node-%E2%89%A520-38e8ff.svg)](package.json)
 
-> Independent, unaffiliated software built on public contracts. Experimental. **NFA.** Read the fine print on [stonkpit.xyz](https://stonkpit.xyz).
+StonkPit is a browser proof-of-work game on Robinhood Chain: clock a **StonkBroker** or **PitBoy** in, your browser grinds SHA-256 at a fixed pace, a winning hash prints `$DERP`. derpminer does the same thing from a terminal — built to **survive flaky RPCs** (where browser miners bleed rewards) and to run 24/7 with a **budgeted shadow key** that can't touch your funds.
+
+> ⚠️ Independent, unaffiliated software built on public contracts. Experimental, on an experimental chain. **NFA.**
+
+<!-- Add a screenshot at docs/dashboard.png (run `derpminer run` → http://127.0.0.1:8787 and capture it). -->
+![derpminer dashboard — a CRT trading-terminal showing miner slots with countdown rings, a live print feed, RPC health, and an emission-index gauge](docs/dashboard.png)
 
 ## Why a dedicated miner
 
-The reward is set by **when** your proof lands, not how fast you hash — the on-chain pace cap means everyone submits at the same rate. That turns mining into a **scheduling** problem:
+- **It's a scheduling problem, not a speed problem.** The on-chain pace cap means everyone mines at the same rate. derpminer precomputes each shift's solution once (seconds of CPU in a worker thread), then sleeps until the pace cap clears and submits inside the 150-second certified window — capturing the full tick-based reward that laggy browser tabs get repriced out of.
+- **RPC-resilient.** A health-scored pool of your endpoints with automatic failover; time-critical clock-outs are **broadcast to every healthy RPC at once** (hedged), with gas-bump retries and a serial nonce queue. Stale/orphaned shifts re-clock for free the instant they're detected.
+- **Headless & cold.** Runs as pure CLI (`--no-ui`) on your machine or a small server. Your main wallet key never touches the tool — mining uses a throwaway hot key the contract restricts on-chain.
 
-- **Precompute, then wait.** Each shift's solution is ground once (a few seconds of CPU), then the miner sleeps until the pace cap clears and submits inside the 150-second certified grace window. Near-zero idle CPU; hundreds of slots per box.
-- **Never miss a submit.** Clock-outs are broadcast to every healthy RPC at once (hedged), with automatic failover, gas-bump retries, and a serial nonce queue. A stale or orphaned shift is re-clocked for free the instant it's detected.
-- **Your main key stays cold.** By default the miner runs as a protocol **shadow key**: you sign one budgeted grant with your owner wallet, fund a fee tank, and the hot key can only spend that tank via clock-in and pay prints back to you. A leaked hot key buys an attacker nothing but grief-mining inside your budget.
+## 🔒 It cannot drain your wallet — verify in 60 seconds
 
-## How mining works (the parts that matter)
+The safety guarantee is **enforced on-chain**, so it holds even if you don't trust this code:
 
-- **Proof:** `sha256(mine ++ tokenId ++ ticks ++ slotProofHash ++ grindSeed)` must end in `0x5d3129` (P = 2⁻²⁴, ~16.8M expected hashes).
-- **Seed:** the contract sets the grind seed at clock-in (from the ticker + previous block hash), so nothing can be pre-ground.
-- **Pace cap:** a clock-out with `ticks` is only accepted after `ticks / 20000` seconds have passed since clock-in. Submit within 150s of that moment to print **certified** and be paid at your tick position; later prints still pay but are repriced down the decay curve.
-- **Reward:** the quickest hash prints the most (up to 4 444 DERP), decaying to a 44 DERP floor. The live **Index** (0–90) compresses rewards when the floor runs hot.
-- **PitBoys:** same engine, but fees are in **APE** and every active slot must be backed by a distinct PitBoy in the panel (one boy = one live shift).
-
-Every one of these is enforced on-chain; this client can't and doesn't try to bend them. It just schedules submissions perfectly and never misses one.
-
-## Install
-
-```bash
-npm install
-npm run build
-```
-
-Requires Node ≥ 20. For the fork E2E test you also need [Foundry](https://book.getfoundry.sh/) (`anvil`).
-
-## Usage
-
-```bash
-# 1. Configure RPCs, wallet mode, and which token/slots to mine.
-#    Bring your own RPC endpoints — add at least two for resilience.
-derpminer init
-
-# 2. Shadow mode (recommended): generate a hot key and print the owner
-#    transactions that grant it a budget. Sign these with your OWNER wallet.
-derpminer shadow-setup --budget <wei> --max-fee <wei> --deposit <wei> --days 30
-
-# 3. Check the economics before committing (on-chain reads only, no price guess).
-derpminer quote pitboys <tokenId> <slot>
-
-# 4. Run the daemon. Headless by default; dashboard on http://127.0.0.1:8787.
-derpminer run
-derpminer run --no-ui          # pure CLI, no dashboard server at all
-
-# Anytime:
-derpminer status              # persisted per-slot state + lifetime prints
-derpminer tank pitboys        # fee-tank balance; --withdraw <wei> for calldata
-```
-
-The miner reads its config and encrypted hot key from `~/.derpminer` (override with `DERPMINER_HOME`). Set `DERPMINER_LOG=debug` for verbose logs.
-
-## Safety model — it cannot drain you
-
-Running this **cannot cost you anything but the mining fees you explicitly budget**, even if the code were malicious. Full details and a self-audit recipe in [SECURITY.md](SECURITY.md); in short:
-
-- **Your owner private key is never entered, stored, or seen by this tool.** `shadow-setup` prints calldata you sign in your own wallet.
-- The tool mines with a throwaway **hot key** that the StonkPit contract restricts *on-chain* to two harmless actions: clock in (paid from a budget **you** set, capped by `maxFee`) and clock out (which **always pays your wallet, never the key**). It cannot activate, withdraw the tank, re-grant itself, or transfer anything.
-- **Defense in depth:** the signer itself refuses to sign anything but `clockIn`/`clockOut` to your mine, with zero native value — proven by [`test/txGuard.test.ts`](test/txGuard.test.ts) (every drain/transfer/approve attempt is rejected).
+- Your **owner key is never entered into, stored by, or seen by the tool.** You sign a one-time budgeted grant in your own wallet.
+- The hot key it mines with is restricted by the StonkPit contract to **clock in** (paid from a tank *you* fund, capped by `maxFee`) and **clock out** (which **always pays your wallet, never the key**). It can't activate, withdraw the tank, re-grant itself, or transfer anything.
 - **Worst case if the hot key leaks:** an attacker wastes your budgeted fees by grief-mining. Your wallet, NFTs, DERP, and tank are unreachable.
-- **No hidden network calls:** only your RPCs, one optional price GET (`enablePrice: false` to disable), and your optional webhook. The dashboard binds to `127.0.0.1` only; `--no-ui` removes it entirely.
-- **No trading, ever.** It mines and reports; `quote` assumes no token price — the value judgment is yours.
+
+Check it yourself:
+
+```bash
+# Every outbound connection this tool makes (only your RPCs + one price GET + your webhook):
+grep -rn "fetch\|http\.\|WebSocket\|net\.\|dns\." src/ --include="*.ts"
+
+# Watch every theft attempt (transfer/approve/withdrawTank/setShadow) get rejected before signing:
+npx vitest run test/txGuard.test.ts
+```
+
+Full model and audit recipe in **[SECURITY.md](SECURITY.md)**.
+
+## Quickstart
+
+Prerequisites (you acquire these yourself): a **PitBoy** on Robinhood Chain, **~60–75 APE**, and a little **ETH** for gas. Then:
+
+```bash
+npm install && npm run build
+alias derpminer="node $PWD/dist/cli.js"
+
+derpminer quote pitboys 742 0                  # see live economics (free, read-only)
+derpminer init                                 # configure mine, token, slots
+derpminer activate pitboys <TOKEN> 0 --web     # activate the slot (signs in your browser wallet)
+derpminer shadow-setup --deposit 15 --budget 100 --max-fee 0.2 --days 14 --web
+derpminer run                                  # headless miner + dashboard on :8787
+```
+
+Full walkthrough with troubleshooting: **[QUICKSTART.md](QUICKSTART.md)**.
+
+## How mining works
+
+- **Proof:** `sha256(mine ++ tokenId ++ ticks ++ slotProofHash ++ grindSeed)` must end in `0x5d3129` (~16.8M expected hashes). The seed is set by the contract at clock-in, so nothing can be pre-ground.
+- **Reward:** the quickest hash prints the most (up to 4 444 DERP), decaying to a 44 floor. The live **Index** (0–90) compresses rewards when the floor runs hot. The *expected* print integrates the geometric hit distribution — `quote` shows the honest number, not the naive floor.
+- **Both floors, one engine:**
+
+| | StonkBrokers (`broker`) | PitBoys (`pitboys`) |
+|---|---|---|
+| Fees | ETH | APE |
+| Slots | 16, cheap flat fees | 16, each backed by a distinct boy |
+| Capital / slot | ~$1,320 (NFT floor ~11 ETH ÷ 16) | ~$316 (one boy) |
+
+## Commands
+
+`init` · `quote <mine> <tok> <slot>` · `activate <mine> <tok> <slot> [--web]` · `shadow-setup [--web]` · `run [--no-ui] [--port]` · `status` · `tank <mine> [--withdraw]`
 
 ## Testing & verification provenance
 
 ```bash
-npm test                                  # fast unit suite
-DERP_SLOW_TESTS=1 npm test                # + real multi-million-hash grinds
-LIVE_VERIFY=1 npm run test:e2e            # grind a live shift; chain's verifyProof confirms it
-FORK_RPC=https://rpc.mainnet.chain.robinhood.com npm run test:e2e   # full clock-out on an anvil fork
+npm run check                              # typecheck + unit tests
+DERP_SLOW_TESTS=1 npm test                 # + real multi-million-hash grinds
+LIVE_VERIFY=1 npm run test:e2e             # grind a live shift; chain's verifyProof confirms it
+FORK_RPC=<rpc> npm run test:e2e            # full clock-out on an anvil fork
 ```
 
-Correctness is anchored three ways:
+Correctness is anchored three ways: a **golden vector** (the preimage reproduces a real on-chain proof byte-exact), **live consensus** (the engine grinds a currently-open shift and the chain's own `verifyProof` accepts it), and the **full write path** (a ground solution clocks out against real bytecode on an anvil fork and DERP transfers out of the mine's pool).
 
-1. **Golden vector** — the SHA-256 preimage reproduces a real on-chain proof byte-exact (PitBoys token 742, slot 3, ticks 13 786 224 → `…cd5d3129`).
-2. **Live consensus** — the engine grinds a currently-open shift and the chain's own `verifyProof` view accepts the solution.
-3. **Full write path** — on an anvil fork of Robinhood Chain, a ground solution is clocked out against real deployed bytecode and DERP transfers out of the mine's pool, exactly matching the emitted reward.
+## Disclaimer
+
+This tool mines and reports; it never trades or sells your DERP, and assumes no token price. Mining profitability depends on the DERP price, the emission index, and NFT floors — all volatile. Nothing here is financial advice. Never stake more than you accept losing.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+[MIT](LICENSE)

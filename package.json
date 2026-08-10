@@ -1,16 +1,36 @@
 {
   "name": "derpminer",
   "version": "0.1.0",
-  "description": "Headless, RPC-resilient CLI miner for StonkPit ($DERP) on Robinhood Chain",
+  "description": "Headless, RPC-resilient CLI miner for StonkPit ($DERP) on Robinhood Chain — mine without a browser, keep your main wallet cold.",
   "type": "module",
   "bin": { "derpminer": "dist/cli.js" },
   "engines": { "node": ">=20" },
+  "keywords": [
+    "stonkpit",
+    "derp",
+    "robinhood-chain",
+    "proof-of-work",
+    "miner",
+    "pitboys",
+    "stonkbrokers",
+    "cli",
+    "web3",
+    "viem"
+  ],
+  "license": "MIT",
+  "author": "derpminer contributors",
+  "repository": { "type": "git", "url": "git+https://github.com/OWNER/derpminer.git" },
+  "bugs": { "url": "https://github.com/OWNER/derpminer/issues" },
+  "homepage": "https://github.com/OWNER/derpminer#readme",
+  "files": ["dist", "README.md", "SECURITY.md", "QUICKSTART.md", "LICENSE"],
   "scripts": {
     "build": "tsc -p tsconfig.json && node -e \"require('fs').cpSync('src/ui','dist/ui',{recursive:true})\"",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
     "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm run test",
+    "prepublishOnly": "npm run build",
     "dev": "node --import tsx src/cli.ts"
   },
   "dependencies": {
