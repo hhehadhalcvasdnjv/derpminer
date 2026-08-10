@@ -74,6 +74,8 @@ export class StatusHub {
   }
 
   private async cachedPrice(): Promise<number> {
+    // Opt-out: no external price call at all, only your own RPCs.
+    if (this.config.enablePrice === false) return 0;
     if (this.priceCache && nowMs() - this.priceCache.at < 60_000) return this.priceCache.value;
     let value = this.priceCache?.value ?? 0.000895;
     try {

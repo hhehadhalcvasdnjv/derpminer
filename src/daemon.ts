@@ -11,6 +11,7 @@ import { PoolChainClock, Wake } from './core/chainClock.js';
 import { StateStore } from './core/state.js';
 import { findSolution } from './core/proof.js';
 import { makeSigner } from './wallet/signer.js';
+import { buildShadowTxGuard, buildDirectTxGuard } from './wallet/txGuard.js';
 import { StatusHub } from './statusHub.js';
 import { startDashboardServer } from './server.js';
 import { notify } from './notify.js';
@@ -43,7 +44,21 @@ export async function startDaemon(config: Config, privateKey: Hex, opts: DaemonO
   if (config.targets.length === 0) throw new Error('no targets configured — run `derpminer init` first');
 
   const pool = RpcPool.fromUrls(config.rpcUrls, robinhoodChain, { receiptPollMs: 1500 });
-  const signer = makeSigner({ pool, chainId: robinhoodChain.id, privateKey });
+
+  // Hard allowlist on the hot key: it can ONLY clockIn/clockOut on the mines it
+  // is configured for. Enforced in the signer, before anything is signed.
+  const mineAddresses = [...new Set(config.targets.map((t) => t.mine))].map((k) => MINES[k].address);
+  const guard = config.walletMode === 'direct' ? buildDirectTxGuard(mineAddresses) : buildShadowTxGuard(mineAddresses);
+  const signer = makeSigner({ pool, chainId: robinhoodChain.id, privateKey, guard });
+
+  // Outbound transparency: every host this process will talk to, logged up front.
+  const priceHost = config.enablePrice === false ? [] : ['robinhoodchain.blockscout.com (DERP price, GET only)'];
+  const hooks = config.webhookUrl ? [new URL(config.webhookUrl).host + ' (your webhook)'] : [];
+  log.info('outbound hosts', {
+    rpc: config.rpcUrls.map((u) => new URL(u).host),
+    other: [...priceHost, ...hooks],
+    note: 'no other network egress; dashboard binds to 127.0.0.1 only',
+  });
   const txQueue = new TxQueue({
     account: { address: signer.address },
     pool,

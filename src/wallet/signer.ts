@@ -2,6 +2,7 @@ import { privateKeyToAccount } from 'viem/accounts';
 import { serializeTransaction, keccak256, type Hex, type PublicClient } from 'viem';
 import type { SignFn, TxRequest, FeeFields } from '../chain/txQueue.js';
 import type { RpcPool } from '../chain/rpcPool.js';
+import type { TxGuard } from './txGuard.js';
 
 export interface SignerContext {
   pool: RpcPool;
@@ -9,6 +10,11 @@ export interface SignerContext {
   privateKey: Hex;
   /** Fixed gas ceiling per call type when estimation is unavailable. */
   gasFallback?: bigint;
+  /**
+   * Hard allowlist run before signing. If it throws, nothing is signed. This is
+   * the enforced boundary on what the key can do — see wallet/txGuard.ts.
+   */
+  guard?: TxGuard;
 }
 
 /**
@@ -22,6 +28,9 @@ export function makeSigner(ctx: SignerContext): { sign: SignFn; address: Hex } {
   const gasFallback = ctx.gasFallback ?? 500_000n;
 
   const sign: SignFn = async (req: TxRequest & FeeFields) => {
+    // Hard boundary: refuse to sign anything outside the allowlist. Runs BEFORE
+    // gas estimation or signing, so a refused tx never touches the key.
+    if (ctx.guard) ctx.guard(req);
     const gas = req.gas ?? (await estimateGas(ctx.pool, account.address, req, gasFallback));
     const serialized = await account.signTransaction({
       to: req.to,

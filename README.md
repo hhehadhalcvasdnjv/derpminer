@@ -58,11 +58,16 @@ derpminer tank pitboys        # fee-tank balance; --withdraw <wei> for calldata
 
 The miner reads its config and encrypted hot key from `~/.derpminer` (override with `DERPMINER_HOME`). Set `DERPMINER_LOG=debug` for verbose logs.
 
-## Safety model
+## Safety model — it cannot drain you
+
+Running this **cannot cost you anything but the mining fees you explicitly budget**, even if the code were malicious. Full details and a self-audit recipe in [SECURITY.md](SECURITY.md); in short:
 
 - **Your owner private key is never entered, stored, or seen by this tool.** `shadow-setup` prints calldata you sign in your own wallet.
-- The hot (shadow) key is generated locally and stored encrypted (scrypt + AES-256-GCM, `0600`). Under the shadow profile it can only clock in from your budgeted tank and clock out (which always pays you) — it can never move funds or activate slots.
-- **No trading, ever.** The tool mines and reports; it never sells DERP, and `quote` assumes no token price — it shows DERP/day and fee/day, and the value judgment is yours.
+- The tool mines with a throwaway **hot key** that the StonkPit contract restricts *on-chain* to two harmless actions: clock in (paid from a budget **you** set, capped by `maxFee`) and clock out (which **always pays your wallet, never the key**). It cannot activate, withdraw the tank, re-grant itself, or transfer anything.
+- **Defense in depth:** the signer itself refuses to sign anything but `clockIn`/`clockOut` to your mine, with zero native value — proven by [`test/txGuard.test.ts`](test/txGuard.test.ts) (every drain/transfer/approve attempt is rejected).
+- **Worst case if the hot key leaks:** an attacker wastes your budgeted fees by grief-mining. Your wallet, NFTs, DERP, and tank are unreachable.
+- **No hidden network calls:** only your RPCs, one optional price GET (`enablePrice: false` to disable), and your optional webhook. The dashboard binds to `127.0.0.1` only; `--no-ui` removes it entirely.
+- **No trading, ever.** It mines and reports; `quote` assumes no token price — the value judgment is yours.
 
 ## Testing & verification provenance
 

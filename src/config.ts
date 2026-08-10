@@ -31,6 +31,9 @@ export interface Config {
   pollMs: number;
   /** Optional webhook for print/alert notifications. */
   webhookUrl?: string;
+  /** Fetch the DERP price from Blockscout for the dashboard (default true). Set
+   * false for zero external network egress beyond your own RPCs. */
+  enablePrice?: boolean;
 }
 
 /** The config home, overridable via DERPMINER_HOME (used heavily in tests). */
