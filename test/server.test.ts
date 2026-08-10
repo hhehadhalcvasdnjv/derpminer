@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import type { Server } from 'node:http';
-import { startDashboardServer, type DashboardState } from '../src/server.js';
+import { startDashboardServer, serveSigningPage, type DashboardState } from '../src/server.js';
 
 const SAMPLE: DashboardState = {
   price: 0.000895,
@@ -66,5 +66,36 @@ describe('dashboard server', () => {
     server = startDashboardServer(PORT, async () => SAMPLE);
     await new Promise((r) => setTimeout(r, 100));
     expect((await get('/nope')).status).toBe(404);
+  });
+});
+
+describe('signing page', () => {
+  const chain = { chainId: 4663, name: 'Robinhood Chain', rpc: 'https://rpc.mainnet.chain.robinhood.com', explorer: 'https://robinscan.io' };
+  const txs = [
+    { kind: 'agree', to: '0x6FeD5aE5d486A59081FDC040179CEBDA4be80511', data: '0x8fae60a5', value: 0n, summary: 'Agree.' },
+    { kind: 'depositTank', to: '0x6FeD5aE5d486A59081FDC040179CEBDA4be80511', data: '0x1234', value: 15_000000000000000000n, summary: 'Fund.' },
+  ];
+
+  it('injects the txs as window.__SETUP__ (bigints as strings) and serves the page', async () => {
+    const s = serveSigningPage(PORT + 1, 'Shadow-key setup', chain, txs);
+    server = s.server;
+    await new Promise((r) => setTimeout(r, 100));
+    const res = await fetch(`http://127.0.0.1:${PORT + 1}/`);
+    const body = await res.text();
+    expect(body).toContain('window.__SETUP__');
+    expect(body).toContain('"chainId":4663');
+    expect(body).toContain('"15000000000000000000"'); // bigint value serialized as string
+    expect(body).toContain('STONKPIT'); // the setup UI markup is inlined
+  });
+
+  it('resolves done when the page POSTs /setup/done', async () => {
+    const s = serveSigningPage(PORT + 2, 'Setup', chain, txs);
+    server = s.server;
+    await new Promise((r) => setTimeout(r, 100));
+    let resolved = false;
+    void s.done.then(() => (resolved = true));
+    await fetch(`http://127.0.0.1:${PORT + 2}/setup/done`, { method: 'POST' });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(resolved).toBe(true);
   });
 });

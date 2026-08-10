@@ -29,14 +29,71 @@ export interface DashboardState {
 }
 
 const DASHBOARD_URL = new URL('./ui/dashboard.html', import.meta.url);
+const SETUP_URL = new URL('./ui/setup.html', import.meta.url);
+const FAVICON =
+  "<link rel=\"icon\" href=\"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛏️</text></svg>\">";
 
-function pageHtml(): string {
-  const body = readFileSync(fileURLToPath(DASHBOARD_URL), 'utf8');
+function wrapPage(bodyFile: URL, title: string, head = ''): string {
+  const body = readFileSync(fileURLToPath(bodyFile), 'utf8');
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>STONKPIT · derpminer</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛏️</text></svg>">
+<title>${title}</title>${FAVICON}${head}
 </head><body style="margin:0;background:#07080a">${body}</body></html>`;
+}
+
+function pageHtml(): string {
+  return wrapPage(DASHBOARD_URL, 'STONKPIT · derpminer');
+}
+
+/** A transaction the owner signs in their own wallet. */
+export interface SigningTx {
+  kind: string;
+  to: string;
+  data: string;
+  value: bigint;
+  summary: string;
+}
+
+export interface SigningChain {
+  chainId: number;
+  name: string;
+  rpc: string;
+  explorer: string;
+}
+
+/**
+ * Serve a one-page wizard that signs the given owner transactions through the
+ * user's OWN browser wallet (window.ethereum) — the tool builds the calldata
+ * but never sees a key. Resolves `done` when the page reports all signed (or
+ * when closed). Binds to 127.0.0.1 only.
+ */
+export function serveSigningPage(
+  port: number,
+  title: string,
+  chain: SigningChain,
+  txs: SigningTx[],
+): { server: Server; url: string; done: Promise<void> } {
+  const config = JSON.stringify({ title, chain, txs }, (_k, v) => (typeof v === 'bigint' ? v.toString() : v));
+  const head = `<script>window.__SETUP__ = ${config};</script>`;
+  let resolveDone: () => void;
+  const done = new Promise<void>((res) => (resolveDone = res));
+
+  const server = createServer((req, res) => {
+    const url = req.url ?? '/';
+    if (req.method === 'POST' && url.startsWith('/setup/done')) {
+      res.writeHead(204).end();
+      resolveDone();
+      return;
+    }
+    if (url === '/' || url.startsWith('/index')) {
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
+      res.end(wrapPage(SETUP_URL, `${title} · STONKPIT`, head));
+      return;
+    }
+    res.writeHead(404).end('not found');
+  });
+  server.listen(port, '127.0.0.1', () => log.info('signing page', { url: `http://127.0.0.1:${port}` }));
+  return { server, url: `http://127.0.0.1:${port}`, done };
 }
 
 /**

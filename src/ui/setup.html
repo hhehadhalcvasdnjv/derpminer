@@ -1,0 +1,204 @@
+<style>
+  :root {
+    --bg: #07080a; --panel: #0d1113; --panel2: #0f1417; --edge: #1b262a; --edge-hot: #244436;
+    --green: #2bff88; --amber: #ffb02e; --cyan: #38e8ff; --red: #ff4d4d;
+    --ink: #cdd8d0; --ink-dim: #7f8f84; --ink-faint: #47554d;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Menlo", "Consolas", monospace;
+    --glow-green: 0 0 6px rgba(43,255,136,.55);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); }
+  #app {
+    font-family: var(--mono); color: var(--ink); min-height: 100vh;
+    background: radial-gradient(1000px 600px at 80% -10%, rgba(43,255,136,.05), transparent 60%), var(--bg);
+    padding: 32px clamp(14px, 4vw, 40px); letter-spacing: .02em; -webkit-font-smoothing: antialiased;
+  }
+  #app::before { content:""; position:fixed; inset:0; pointer-events:none; z-index:9;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,.15) 0 1px, transparent 1px 3px); mix-blend-mode: multiply; opacity:.5; }
+  .wrap { max-width: 720px; margin: 0 auto; position: relative; z-index: 2; }
+  .brand { font-size: 20px; font-weight: 800; letter-spacing: .1em; color: var(--green); text-shadow: var(--glow-green); }
+  .brand .sub { color: var(--ink-dim); font-size: 12px; letter-spacing: .26em; text-transform: uppercase; font-weight: 500; margin-left: 8px; }
+  h1 { font-size: 15px; letter-spacing: .04em; margin: 22px 0 4px; font-weight: 700; }
+  .lede { color: var(--ink-dim); font-size: 13px; line-height: 1.5; margin-bottom: 20px; }
+  .lede b { color: var(--cyan); }
+
+  .bar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; border: 1px solid var(--edge);
+    background: linear-gradient(180deg, var(--panel2), var(--panel)); border-radius: 4px; padding: 14px 16px; margin-bottom: 18px; }
+  .status-pill { display: flex; align-items: center; gap: 8px; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-dim); }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ink-faint); }
+  .dot.ok { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .dot.warn { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+  .grow { flex: 1; }
+  .acct { font-size: 12px; color: var(--ink-dim); }
+  .acct b { color: var(--ink); }
+
+  button { font-family: var(--mono); cursor: pointer; border-radius: 4px; letter-spacing: .06em;
+    border: 1px solid var(--edge-hot); background: #0f1a16; color: var(--green); padding: 10px 16px; font-size: 13px;
+    font-weight: 700; transition: background .2s, transform .1s, opacity .2s; }
+  button:hover:not(:disabled) { background: #12241b; }
+  button:active:not(:disabled) { transform: translateY(1px); }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  button.primary { border-color: var(--green); background: #102c1e; }
+  button.ghost { border-color: var(--edge); background: transparent; color: var(--ink-dim); }
+
+  .tx { border: 1px solid var(--edge); background: linear-gradient(180deg, var(--panel2), var(--panel));
+    border-radius: 4px; padding: 14px 16px; margin-bottom: 10px; display: flex; gap: 14px; align-items: flex-start; transition: border-color .3s; }
+  .tx.active { border-color: var(--edge-hot); }
+  .tx.done { border-color: var(--green); }
+  .tx.failed { border-color: var(--red); }
+  .tx .num { width: 26px; height: 26px; flex: none; border-radius: 50%; border: 1px solid var(--edge-hot);
+    display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; color: var(--ink-dim); }
+  .tx.done .num { background: var(--green); color: #051a10; border-color: var(--green); }
+  .tx.active .num { border-color: var(--amber); color: var(--amber); }
+  .tx .body { flex: 1; min-width: 0; }
+  .tx .kind { font-size: 13px; font-weight: 700; text-transform: capitalize; }
+  .tx .summary { font-size: 12px; color: var(--ink-dim); margin-top: 3px; line-height: 1.45; }
+  .tx .meta { font-size: 10.5px; color: var(--ink-faint); margin-top: 6px; word-break: break-all; }
+  .tx .st { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-faint); white-space: nowrap; }
+  .tx.active .st { color: var(--amber); } .tx.done .st { color: var(--green); } .tx.failed .st { color: var(--red); }
+  .tx .st a { color: var(--cyan); text-decoration: none; }
+
+  .foot { margin-top: 18px; font-size: 12px; color: var(--ink-faint); line-height: 1.6; }
+  .foot b { color: var(--amber); }
+  .done-banner { display: none; border: 1px solid var(--green); background: #0c241a; border-radius: 4px; padding: 16px; margin-top: 16px; color: var(--green); font-weight: 700; }
+  .done-banner.show { display: block; }
+  .err { color: var(--red); font-size: 12px; margin-top: 10px; min-height: 16px; }
+</style>
+
+<div id="app"><div class="wrap">
+  <div><span class="brand">⛏ STONKPIT</span><span class="sub">owner setup</span></div>
+  <h1 id="title">Sign setup transactions</h1>
+  <div class="lede">These run in <b>your own wallet</b> — derpminer never sees your key. Connect, then approve each one in order. Make sure your wallet is on <b>Robinhood Chain</b> (this page will offer to add it).</div>
+
+  <div class="bar">
+    <span class="status-pill"><span class="dot" id="wdot"></span><span id="wtext">wallet not connected</span></span>
+    <span class="grow"></span>
+    <span class="acct" id="acct"></span>
+    <button id="connect" class="primary">Connect wallet</button>
+  </div>
+
+  <div id="txs"></div>
+  <div class="err" id="err"></div>
+  <div class="done-banner" id="done">✓ All transactions confirmed. You can close this tab and run <span style="font-family:var(--mono)">derpminer run</span>.</div>
+
+  <div class="foot">
+    No wallet extension? Install <b>Rabby</b> or <b>MetaMask</b>, or paste the raw calldata into any wallet manually — the <span style="color:var(--ink-dim)">data</span> is shown under each step.
+  </div>
+</div></div>
+
+<script>
+(function () {
+  "use strict";
+  // Injected by the server: { title, chain, txs: [{kind,to,data,value,summary}] }
+  var CFG = window.__SETUP__ || { title: "Setup", chain: {}, txs: [] };
+  var $ = function (id) { return document.getElementById(id); };
+  var eth = window.ethereum;
+  var account = null, idx = 0, statuses = [];
+
+  $("title").textContent = CFG.title || "Sign setup transactions";
+  CFG.txs.forEach(function () { statuses.push("pending"); });
+
+  function short(a) { return a ? a.slice(0, 6) + "…" + a.slice(-4) : ""; }
+  function toHexWei(v) { try { return "0x" + BigInt(v || "0").toString(16); } catch (e) { return "0x0"; } }
+  function explorerTx(h) { var b = (CFG.chain.explorer || "").replace(/\/$/, ""); return b ? b + "/tx/" + h : null; }
+
+  function render() {
+    $("txs").innerHTML = CFG.txs.map(function (t, i) {
+      var st = statuses[i], cls = st === "confirmed" ? "done" : st === "signing" || st === "mining" ? "active" : st === "failed" ? "failed" : "";
+      var label = ({ pending: "waiting", signing: "sign in wallet", mining: "confirming…", confirmed: "confirmed", failed: "failed" })[st] || st;
+      var link = statuses["hash" + i] && explorerTx(statuses["hash" + i]);
+      var stHtml = link ? '<a href="' + link + '" target="_blank" rel="noopener">' + label + ' ↗</a>' : label;
+      return '<div class="tx ' + cls + '">' +
+        '<div class="num">' + (st === "confirmed" ? "✓" : (i + 1)) + '</div>' +
+        '<div class="body">' +
+          '<div class="kind">' + t.kind + '</div>' +
+          '<div class="summary">' + (t.summary || "") + '</div>' +
+          '<div class="meta">to ' + t.to + (BigInt(t.value || "0") ? ' · value ' + t.value + ' wei' : '') + '<br>data ' + (t.data || "0x").slice(0, 42) + '…</div>' +
+        '</div>' +
+        '<div class="st">' + stHtml + '</div>' +
+      '</div>';
+    }).join("");
+    var allDone = statuses.every(function (s) { return s === "confirmed"; });
+    $("done").classList.toggle("show", allDone && CFG.txs.length > 0);
+  }
+
+  function setW(state, text) { $("wdot").className = "dot " + state; $("wtext").textContent = text; }
+
+  async function ensureChain() {
+    var hexId = "0x" + Number(CFG.chain.chainId || 4663).toString(16);
+    try {
+      await eth.request({ method: "wallet_switchEthereumChain", params: [{ chainId: hexId }] });
+    } catch (e) {
+      if (e && (e.code === 4902 || String(e.message).indexOf("Unrecognized") >= 0)) {
+        await eth.request({ method: "wallet_addEthereumChain", params: [{
+          chainId: hexId, chainName: CFG.chain.name || "Robinhood Chain",
+          nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+          rpcUrls: CFG.chain.rpc ? [CFG.chain.rpc] : [], blockExplorerUrls: CFG.chain.explorer ? [CFG.chain.explorer] : []
+        }] });
+      } else { throw e; }
+    }
+  }
+
+  async function connect() {
+    $("err").textContent = "";
+    if (!eth) { $("err").textContent = "No wallet extension found. Install Rabby or MetaMask."; return; }
+    try {
+      setW("warn", "connecting…");
+      var accts = await eth.request({ method: "eth_requestAccounts" });
+      account = accts[0];
+      await ensureChain();
+      setW("ok", "connected · Robinhood Chain");
+      $("acct").innerHTML = "signer <b>" + short(account) + "</b>";
+      $("connect").textContent = "Sign transaction 1";
+      $("connect").onclick = signNext;
+      render();
+    } catch (e) { setW("warn", "not connected"); $("err").textContent = errMsg(e); }
+  }
+
+  async function waitReceipt(hash) {
+    for (var i = 0; i < 120; i++) {
+      var r = await eth.request({ method: "eth_getTransactionReceipt", params: [hash] });
+      if (r) return r;
+      await new Promise(function (res) { return setTimeout(res, 2500); });
+    }
+    return null;
+  }
+
+  async function signNext() {
+    if (idx >= CFG.txs.length) return;
+    var t = CFG.txs[idx];
+    $("err").textContent = "";
+    $("connect").disabled = true;
+    statuses[idx] = "signing"; render();
+    try {
+      await ensureChain();
+      var hash = await eth.request({ method: "eth_sendTransaction", params: [{
+        from: account, to: t.to, data: t.data || "0x", value: toHexWei(t.value)
+      }] });
+      statuses["hash" + idx] = hash; statuses[idx] = "mining"; render();
+      var rcpt = await waitReceipt(hash);
+      if (rcpt && (rcpt.status === "0x1" || rcpt.status === 1)) { statuses[idx] = "confirmed"; }
+      else { statuses[idx] = "failed"; throw new Error("transaction reverted"); }
+      idx++;
+      render();
+      if (idx < CFG.txs.length) { $("connect").textContent = "Sign transaction " + (idx + 1); $("connect").disabled = false; }
+      else {
+        $("connect").textContent = "All done ✓"; $("connect").className = "ghost"; $("connect").disabled = true;
+        try { fetch("/setup/done", { method: "POST" }); } catch (e) {}
+      }
+    } catch (e) {
+      statuses[idx] = statuses[idx] === "mining" ? "failed" : "pending"; render();
+      $("err").textContent = errMsg(e); $("connect").disabled = false;
+    }
+  }
+
+  function errMsg(e) {
+    var m = (e && (e.message || e.toString())) || "unknown error";
+    if (e && e.code === 4001) return "You rejected the request in your wallet.";
+    return m.slice(0, 160);
+  }
+
+  $("connect").onclick = connect;
+  render();
+})();
+</script>

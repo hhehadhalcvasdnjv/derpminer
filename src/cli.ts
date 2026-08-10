@@ -4,6 +4,7 @@ import { formatEther, formatUnits, parseEther, type Hex } from 'viem';
 import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
 import { existsSync } from 'node:fs';
+import { spawn } from 'node:child_process';
 import {
   loadConfig,
   saveConfig,
@@ -13,12 +14,13 @@ import {
   type Config,
   type TargetConfig,
 } from './config.js';
-import { MINES, robinhoodChain, type MineKey } from './chain/registry.js';
+import { MINES, robinhoodChain, OFFICIAL_RPC, type MineKey } from './chain/registry.js';
 import { RpcPool } from './chain/rpcPool.js';
 import { Mine } from './mines/mine.js';
 import { StateStore } from './core/state.js';
 import { quoteSlot } from './economics.js';
-import { buildShadowSetup, buildWithdrawTank, buildActivate } from './wallet/shadow.js';
+import { buildShadowSetup, buildWithdrawTank, buildActivate, type SetupTx } from './wallet/shadow.js';
+import { serveSigningPage } from './server.js';
 import { generateShadowKey, saveKeystore, loadKeystore, keystoreAddress } from './wallet/keystore.js';
 import { startDaemon } from './daemon.js';
 
@@ -34,6 +36,38 @@ async function prompt(question: string): Promise<string> {
   const answer = await rl.question(question);
   rl.close();
   return answer.trim();
+}
+
+function openBrowser(url: string): void {
+  const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
+  try {
+    spawn(cmd, [url], { stdio: 'ignore', detached: true, shell: process.platform === 'win32' }).unref();
+  } catch {
+    /* user opens it manually from the printed URL */
+  }
+}
+
+/** Print calldata (fallback), or serve the browser-wallet signing page. */
+async function emitTxs(title: string, txs: SetupTx[], web: boolean, port = 8788): Promise<void> {
+  if (!web) {
+    console.log('\nSign these with your OWNER wallet, in order:\n');
+    txs.forEach((tx, i) => {
+      console.log(`${i + 1}. ${tx.kind} — ${tx.summary}`);
+      console.log(`   to:    ${tx.to}`);
+      console.log(`   value: ${tx.value}`);
+      console.log(`   data:  ${tx.data}\n`);
+    });
+    console.log('Tip: re-run with --web to sign these in your browser wallet instead.');
+    return;
+  }
+  const chain = { chainId: robinhoodChain.id, name: 'Robinhood Chain', rpc: OFFICIAL_RPC, explorer: 'https://robinscan.io' };
+  const { server, url, done } = serveSigningPage(port, title, chain, txs);
+  console.log(`\nOpen this in a browser with Rabby/MetaMask to sign (no key ever leaves your wallet):\n  ${url}\n`);
+  openBrowser(url);
+  console.log('Waiting for you to sign… (Ctrl-C to cancel)');
+  await done;
+  console.log('✓ All transactions confirmed.');
+  server.close();
 }
 
 // ---------------------------------------------------------------- init
@@ -72,7 +106,8 @@ program
   .option('--max-fee <ape>', 'per-clock-in fee ceiling, in APE/ETH', '0.2')
   .option('--deposit <ape>', 'fee-asset to pre-fund into the tank, in APE/ETH', '0')
   .option('--days <n>', 'grant validity in days', '30')
-  .action(async (opts: { budget: string; maxFee: string; deposit: string; days: string }) => {
+  .option('--web', 'sign in your browser wallet instead of printing calldata')
+  .action(async (opts: { budget: string; maxFee: string; deposit: string; days: string; web?: boolean }) => {
     const config = loadConfig();
     const target = config.targets[0];
     if (!target) throw new Error('configure a target first with `derpminer init`');
@@ -102,21 +137,16 @@ program
       tankDeposit: parseEther(opts.deposit),
     });
 
-    console.log('\nSign these with your OWNER wallet, in order:\n');
-    txs.forEach((tx, i) => {
-      console.log(`${i + 1}. ${tx.kind} — ${tx.summary}`);
-      console.log(`   to:    ${tx.to}`);
-      console.log(`   value: ${tx.value}`);
-      console.log(`   data:  ${tx.data}\n`);
-    });
-    console.log('After they confirm, run `derpminer run`.');
+    await emitTxs('Shadow-key setup', txs, !!opts.web);
+    console.log('\nAfter they confirm, run `derpminer run`.');
   });
 
 // ---------------------------------------------------------------- activate
 program
   .command('activate <mine> <tokenId> <slot>')
-  .description('Print the OWNER transactions to activate a slot (owner action, not the shadow key)')
-  .action(async (mineKey: string, tokenId: string, slot: string) => {
+  .description('Activate a slot (owner action). --web signs in your browser wallet')
+  .option('--web', 'sign in your browser wallet instead of printing calldata')
+  .action(async (mineKey: string, tokenId: string, slot: string, opts: { web?: boolean }) => {
     const config = loadConfig();
     const profile = MINES[mineKey as MineKey];
     const mine = new Mine(profile, poolFor(config));
@@ -137,14 +167,8 @@ program
       console.log(`NOTE: slot ${s} on PitBoys must be backed by another PitBoy assigned in the panel.`);
       console.log('      Assign it on stonkpit.xyz first; slot 0 needs no panel entry.');
     }
-    console.log('\nSign these with your OWNER wallet, in order:\n');
-    txs.forEach((tx, i) => {
-      console.log(`${i + 1}. ${tx.kind} — ${tx.summary}`);
-      console.log(`   to:    ${tx.to}`);
-      console.log(`   value: ${tx.value}`);
-      console.log(`   data:  ${tx.data}\n`);
-    });
-    console.log('Or just click "activate" for this slot on stonkpit.xyz — same on-chain effect.');
+    await emitTxs(`Activate #${tid} slot ${s}`, txs, !!opts.web);
+    if (!opts.web) console.log('Or just click "activate" for this slot on stonkpit.xyz — same on-chain effect.');
   });
 
 // ---------------------------------------------------------------- quote

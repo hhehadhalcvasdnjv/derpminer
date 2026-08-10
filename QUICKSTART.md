@@ -63,27 +63,26 @@ Answer the prompts: mine = `pitboys`, your token id, slots = `0`, wallet mode = 
 ## 4. Activate your slot (owner action)
 
 ```bash
-derpminer activate pitboys <YOUR_TOKEN_ID> 0
+derpminer activate pitboys <YOUR_TOKEN_ID> 0 --web
 ```
 
-It prints the exact transactions to sign **with your own wallet** (agree → approve 58.78 APE → activate). Two ways to execute them:
+`--web` opens a local page that signs the transactions (agree → approve 58.78 APE → activate) **through your own browser wallet** (Rabby/MetaMask) — your key never leaves the extension. Click through them; it even offers to add the Robinhood Chain.
 
-- **Easiest:** open [stonkpit.xyz](https://stonkpit.xyz), connect your wallet, and click *activate* on that slot. Same on-chain result.
-- **Or:** paste each `data` blob into a wallet that supports raw contract calls (Rabby: *Send* → advanced → data).
+Prefer not to use `--web`? Drop the flag to print raw calldata, or just click *activate* on [stonkpit.xyz](https://stonkpit.xyz) — same on-chain result.
 
 ---
 
 ## 5. Hand mining to a shadow key
 
 ```bash
-derpminer shadow-setup --budget 100 --max-fee 0.2 --deposit 15 --days 14
+derpminer shadow-setup --budget 100 --max-fee 0.2 --deposit 15 --days 14 --web
 ```
 
 This:
 - generates an **encrypted hot key** (asks for a passphrase — remember it),
-- prints the owner transactions to sign once: `agree` → `approve` APE → `setShadow` → `depositTank`.
+- opens the browser signing page for the four owner transactions: `agree` → `approve` APE → `setShadow` → `depositTank`.
 
-Amounts are in **APE**: `--deposit 15` puts 15 APE in the fee tank (~1.5 days of testing), `--budget 100` caps what the hot key may ever spend, `--max-fee 0.2` caps each clock-in. Sign these with your owner wallet (Rabby / stonkpit.xyz).
+Amounts are in **APE**: `--deposit 15` puts 15 APE in the fee tank (~1.5 days of testing), `--budget 100` caps what the hot key may ever spend, `--max-fee 0.2` caps each clock-in. Sign them in your browser wallet (drop `--web` for raw calldata instead).
 
 > Your owner key never touches the tool. The hot key it made can only clock in from that tank and clock out to you — nothing else (SECURITY.md).
 
