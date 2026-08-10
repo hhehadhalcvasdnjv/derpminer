@@ -57,8 +57,8 @@ export class Submitter implements ShiftSubmitter {
   /** Pull the printed reward from the ClockedOut event in the receipt logs. */
   private extractReward(logs: readonly unknown[], tokenId: bigint, slot: bigint): bigint {
     for (const raw of logs) {
-      const lg = raw as { address?: Hex; topics?: Hex[]; data?: Hex };
-      if (!lg.topics || !lg.data) continue;
+      const lg = raw as { address?: Hex; topics?: [Hex, ...Hex[]] | []; data?: Hex };
+      if (!lg.topics || lg.topics.length === 0 || !lg.data) continue;
       if (lg.address && lg.address.toLowerCase() !== this.mine.address.toLowerCase()) continue;
       try {
         const ev = decodeEventLog({ abi: this.mine.abi, topics: lg.topics, data: lg.data });
