@@ -124,6 +124,7 @@ async function main() {
   const stopAt = cfg.maxRuntimeSec ? Date.now() + cfg.maxRuntimeSec * 1000 : Infinity;
   let prev = new Set();
   let backoff = 0;
+  let okChecks = 0;
   while (Date.now() < stopAt) {
     try {
       if (Date.now() - discoveredAt > REDISCOVER_MS) {
@@ -134,6 +135,7 @@ async function main() {
       const { fresh, keys } = newlyAvailable(prev, rows);
       prev = keys;
       backoff = 0;
+      okChecks++;
       if (fresh.length) {
         const lines = fresh.map((r) => `• ${r.title}: ${r.store} ${r.quote}`.trim());
         log('🚨 VERFÜGBAR\n' + lines.join('\n'));
@@ -152,6 +154,11 @@ async function main() {
     await sleep(wait);
   }
   log('Maximale Laufzeit erreicht, beende.');
+  // A run where Apple answered nothing must show up red, not as a silent green run.
+  if (!okChecks) {
+    log('Keine einzige Abfrage erfolgreich.');
+    process.exitCode = 1;
+  }
 }
 
 main().catch((err) => {
