@@ -62,6 +62,14 @@ journalctl -u duo-restock -f   # Log ansehen
 
 Ein Server in Deutschland ist besser als einer in einem Rechenzentrum im Ausland: Apple blockt Rechenzentrums-IPs eher. Wenn im Log ständig `HTTP 403` / `541` steht, lieber auf dem Rechner zu Hause laufen lassen.
 
+**Ohne eigenen Rechner (GitHub Actions):** Der Workflow `.github/workflows/duo-restock.yml` startet den Bot alle 10 Minuten für jeweils ~9 Minuten. Einrichten geht komplett im Handy-Browser:
+
+1. Repo → Settings → Secrets and variables → Actions → *New repository secret*: `NTFY_TOPIC` (und/oder `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`).
+2. Optional unter *Variables*: `PRODUCT_URL`, falls die Kaufseite anders heißt.
+3. Actions → „iPhone Duo Restock“ → *Run workflow* zum Testen, im Log sollten die Varianten auftauchen.
+
+Zeitgesteuerte Workflows laufen nur auf dem Standard-Branch (`main`). Die Logs sind bei einem öffentlichen Repo für alle sichtbar, die Secrets nicht. GitHub startet geplante Läufe manchmal verspätet, und Apple blockt Rechenzentrums-IPs eher. Steht im Log dauerhaft `HTTP 403` oder `541`, hilft nur ein Rechner oder Server mit normaler Internetleitung.
+
 ## Verhalten
 
 - Ein Alarm pro Restock: solange eine Variante verfügbar bleibt, kommt keine weitere Nachricht. Ist sie weg und kommt wieder, gibt es einen neuen Alarm.

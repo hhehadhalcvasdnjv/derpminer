@@ -17,6 +17,8 @@ const cfg = {
   capacities: (env.CAPACITIES || '256,512').split(',').map((s) => Number(s.trim())).filter(Boolean),
   parts: (env.PARTS || '').split(',').map((s) => s.trim()).filter(Boolean),
   intervalSec: Math.max(30, Number(env.INTERVAL_SEC || 90)),
+  // 0 = run forever. Set for schedulers (GitHub Actions) that start a fresh run periodically.
+  maxRuntimeSec: Number(env.MAX_RUNTIME_SEC || 0),
   ntfyServer: (env.NTFY_SERVER || 'https://ntfy.sh').replace(/\/$/, ''),
   ntfyTopic: env.NTFY_TOPIC || '',
   tgToken: env.TELEGRAM_BOT_TOKEN || '',
@@ -119,9 +121,10 @@ async function main() {
 
   if (args.has('--once')) return printTable(await checkStock(parts));
 
+  const stopAt = cfg.maxRuntimeSec ? Date.now() + cfg.maxRuntimeSec * 1000 : Infinity;
   let prev = new Set();
   let backoff = 0;
-  for (;;) {
+  while (Date.now() < stopAt) {
     try {
       if (Date.now() - discoveredAt > REDISCOVER_MS) {
         parts = await discoverParts();
@@ -144,8 +147,11 @@ async function main() {
       log(`Fehler: ${err.message}. Nächster Versuch in ${backoff}s.`);
     }
     const base = backoff || cfg.intervalSec;
-    await sleep(base * 1000 * (0.8 + Math.random() * 0.4));
+    const wait = base * 1000 * (0.8 + Math.random() * 0.4);
+    if (Date.now() + wait >= stopAt) break;
+    await sleep(wait);
   }
+  log('Maximale Laufzeit erreicht, beende.');
 }
 
 main().catch((err) => {
